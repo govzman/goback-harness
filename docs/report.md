@@ -1,5 +1,7 @@
 # GoBack Harness на ЧП2
 
+Опубликованные цифры можно пересчитать командой `python results/summarize.py`. Команды для новых прогонов и замеров приведены в README. [Воспроизводимость](../README.md#проверки-и-воспроизводимость) · [Сверка с ТЗ](requirements.md)
+
 ## Стенд и основной сценарий
 
 Windows-клиент делится локальной тестовой папкой через SFTP и SSHFS. Сервер — Ubuntu 22.04 под WSL2 с Docker Engine 29.3 и Compose 5.1. Подключение проверено из CLI и окна Electron. Живой запуск GPT‑6.1 Terra `low` через Sign in with ChatGPT прошёл `read_file`, `set_json_field` и выборочную отмену. Итоговый файл на Windows содержал `port: 8080` и пользовательское `workers: 3`.
