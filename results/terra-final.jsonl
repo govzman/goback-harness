@@ -1,0 +1,39 @@
+{"task": "B1.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 21766, "input_tokens": 2744, "output_tokens": 137}
+{"task": "B2.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 24953, "input_tokens": 1913, "output_tokens": 187}
+{"task": "B3.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 17016, "input_tokens": 1750, "output_tokens": 107}
+{"task": "B4.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": [], "pass": false, "reason": "Agent run failed (RemoteProtocolError)", "duration_ms": 4468, "input_tokens": 0, "output_tokens": 0}
+{"task": "B5.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 22969, "input_tokens": 1664, "output_tokens": 93}
+{"task": "B6.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 17844, "input_tokens": 1456, "output_tokens": 191}
+{"task": "B7.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 19656, "input_tokens": 1886, "output_tokens": 75}
+{"task": "B8.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 18266, "input_tokens": 1385, "output_tokens": 99}
+{"task": "B1.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 15422, "input_tokens": 13411, "output_tokens": 81}
+{"task": "B1.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 16437, "input_tokens": 19857, "output_tokens": 87}
+{"task": "B2.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": false, "reason": "Agent reached the tool step limit", "duration_ms": 120813, "input_tokens": 9059, "output_tokens": 354}
+{"task": "B2.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 22781, "input_tokens": 2918, "output_tokens": 167}
+{"task": "B3.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": [], "pass": false, "reason": "Agent run failed (RemoteProtocolError)", "duration_ms": 3406, "input_tokens": 0, "output_tokens": 0}
+{"task": "B3.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 18094, "input_tokens": 1832, "output_tokens": 193}
+{"task": "B4.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 38359, "input_tokens": 4477, "output_tokens": 447}
+{"task": "B4.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": [], "pass": false, "reason": "Agent run failed (RemoteProtocolError)", "duration_ms": 3625, "input_tokens": 0, "output_tokens": 0}
+{"task": "B5.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 21813, "input_tokens": 2374, "output_tokens": 158}
+{"task": "B5.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 14750, "input_tokens": 1367, "output_tokens": 181}
+{"task": "B6.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 23031, "input_tokens": 1618, "output_tokens": 337}
+{"task": "B6.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 24469, "input_tokens": 2611, "output_tokens": 409}
+{"task": "B7.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 22609, "input_tokens": 1951, "output_tokens": 92}
+{"task": "B7.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 16281, "input_tokens": 1931, "output_tokens": 91}
+{"task": "B8.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 27719, "input_tokens": 2891, "output_tokens": 453}
+{"task": "B8.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": false, "reason": "Agent run failed (RemoteProtocolError)", "duration_ms": 17766, "input_tokens": 1431, "output_tokens": 111}
+{"task": "C1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 41156, "input_tokens": 5414, "output_tokens": 495}
+{"task": "C2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 19578, "input_tokens": 2240, "output_tokens": 148}
+{"task": "C3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 31016, "input_tokens": 3296, "output_tokens": 455}
+{"task": "G1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 14687, "input_tokens": 1379, "output_tokens": 100}
+{"task": "G2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 24282, "input_tokens": 2660, "output_tokens": 167}
+{"task": "G3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 13218, "input_tokens": 1132, "output_tokens": 97}
+{"task": "G4", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 15703, "input_tokens": 1301, "output_tokens": 133}
+{"task": "G5", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 16485, "input_tokens": 1770, "output_tokens": 114}
+{"task": "G6", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 17984, "input_tokens": 1706, "output_tokens": 129}
+{"task": "G7", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 15625, "input_tokens": 1884, "output_tokens": 93}
+{"task": "G8", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 18781, "input_tokens": 2093, "output_tokens": 144}
+{"task": "G9.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 13844, "input_tokens": 1495, "output_tokens": 111}
+{"task": "G9.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 15141, "input_tokens": 1907, "output_tokens": 98}
+{"task": "G9.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 14594, "input_tokens": 1890, "output_tokens": 88}
+{"task": "GC1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 27453, "input_tokens": 3990, "output_tokens": 246}

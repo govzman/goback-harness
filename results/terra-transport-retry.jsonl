@@ -1,0 +1,4 @@
+{"task": "B4.1", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 14860, "input_tokens": 1318, "output_tokens": 151}
+{"task": "B3.2", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 19297, "input_tokens": 2002, "output_tokens": 134}
+{"task": "B4.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 20687, "input_tokens": 1972, "output_tokens": 194}
+{"task": "B8.3", "repeat": 1, "pair": "goback+gpt-6.1-terra-low", "models": ["gpt-6.1-terra"], "pass": true, "reason": "ok", "duration_ms": 18516, "input_tokens": 2381, "output_tokens": 137}
