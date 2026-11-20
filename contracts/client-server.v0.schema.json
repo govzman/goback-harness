@@ -4,6 +4,7 @@
   "title": "GoBack client protocol v0",
   "description": "HTTP /v0 with bearer authentication. Events use SSE with an integer sequence cursor.",
   "$defs": {
+    "scalar": {"type": ["string", "number", "boolean", "null"]},
     "prepare": {
       "type": "object", "required": ["mode", "host_key"],
       "properties": {"mode": {"enum": ["ro", "rw"]}, "host_key": {"type": "string"}}
@@ -30,7 +31,10 @@
     "reply": {
       "type": "object", "required": ["v"],
       "properties": {"v": {"const": 0}, "status": {"type": "string"},
-                     "run_id": {"type": "string"}, "edit_id": {"type": "string"}}
+                     "run_id": {"type": "string"}, "edit_id": {"type": "string"},
+                     "reason": {"type": "string"}, "detail": {"type": ["string", "null"]},
+                     "expected": {"$ref": "#/$defs/scalar"}, "current": {"$ref": "#/$defs/scalar"},
+                     "restore": {"$ref": "#/$defs/scalar"}}
     },
     "event": {
       "type": "object", "required": ["v", "type", "seq"],
@@ -41,7 +45,9 @@
           "file_changed", "edit_applied", "undo_applied", "undo_conflict", "undo_failed"]},
         "text": {"type": "string"}, "path": {"type": ["string", "null"]}, "edit_id": {"type": "string"},
         "address": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-        "status": {"type": "string"}, "run_id": {"type": "string"}, "detail": {"type": ["string", "null"]}
+        "status": {"type": "string"}, "run_id": {"type": "string"}, "detail": {"type": ["string", "null"]},
+        "reason": {"type": "string"}, "expected": {"$ref": "#/$defs/scalar"},
+        "current": {"$ref": "#/$defs/scalar"}, "restore": {"$ref": "#/$defs/scalar"}
       },
       "allOf": [
         {"if": {"properties": {"type": {"enum": ["user_message", "agent_delta"]}}}, "then": {"required": ["text"]}},

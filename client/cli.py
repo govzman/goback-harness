@@ -88,12 +88,16 @@ async def run(args):
             config.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
             resolution = await session.undo(edit["edit_id"])
             wanted = "undo_applied" if args.demo == "neighbor" else "undo_conflict"
-            async with asyncio.timeout(20):
+            explanation = resolution.get("run_id")
+            async with asyncio.timeout(25):
                 async for event in session.events(after=cursor):
                     emit(event)
                     if event["type"] in {"undo_applied", "undo_conflict", "undo_failed"}:
                         if event["type"] != wanted:
                             raise RuntimeError(f"Unexpected undo result: {resolution['status']}")
+                        if not explanation:
+                            break
+                    if explanation and event["type"] == "run_finished" and event["run_id"] == explanation:
                         break
             actual = json.loads(config.read_text(encoding="utf-8"))
             expected = {"port": 8080, "workers": 3} if args.demo == "neighbor" else {"port": 7070, "workers": 2}

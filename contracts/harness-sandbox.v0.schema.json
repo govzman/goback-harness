@@ -31,7 +31,8 @@
                      "status": {"enum": ["ok", "conflict", "unchanged", "command_error", "file_error", "timeout",
                        "cancelled", "read_only", "workdir_disconnected", "invalid_operation", "sandbox_error", "limit_reached"]},
                      "stdout": {"type": "string"}, "stderr": {"type": "string"}, "detail": {"type": "string"},
-                     "exit_code": {"type": ["integer", "null"]}},
+                     "exit_code": {"type": ["integer", "null"]}, "reason": {"type": "string"},
+                     "current": {"type": ["string", "number", "boolean", "null"]}},
       "if": {"properties": {"type": {"const": "result"}}},
       "then": {"required": ["status"]}
     }

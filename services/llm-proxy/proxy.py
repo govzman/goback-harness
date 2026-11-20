@@ -42,6 +42,16 @@ def line(event_type, **fields):
 
 def fixture_items(turn):
     """A deterministic demonstration provider. This does not test model quality."""
+    if not turn.tools:
+        outcome = json.loads(turn.input[-1]["content"])
+        if outcome.get("reason") == "field_changed":
+            field = ".".join(outcome["address"])
+            return [fixture_message(
+                f"В {outcome['path']} поле {field} содержит {outcome['current']!r}. "
+                f"Для возврата к {outcome['restore']!r} GoBack ожидал {outcome['expected']!r} "
+                "и оставил файл как есть."
+            )]
+        return [fixture_message(outcome.get("detail") or f"Отмена завершилась со статусом {outcome['status']}.")]
     user_index = max(i for i, item in enumerate(turn.input) if item.get("role") == "user")
     prompt = turn.input[user_index]["content"]
     marker = re.match(r"^\[fixture:([\w.]+)\]", prompt)
@@ -118,7 +128,7 @@ async def provider_events(turn):
         return
 
     tools = turn.tools
-    if MODE == "chatgpt":
+    if MODE == "chatgpt" and tools:
         tools = [{"type": "namespace", "name": "workdir",
                   "description": "Tools for the GoBack sandbox workdir", "tools": tools}]
     request = {

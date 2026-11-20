@@ -11,7 +11,7 @@
 - После открытия туннеля клиент вызывает `POST /v0/sessions/{id}/mount`.
 - `POST /v0/sessions/{id}/messages` принимает `message`. Повтор с тем же ID и текстом возвращает тот же ID запуска.
 - `GET /v0/sessions/{id}/events?after=N` выдаёт SSE с событиями `event`, начиная с `N + 1`. Клиент сохраняет последний полученный `seq` и восстанавливается от этой позиции.
-- `POST /v0/sessions/{id}/edits/{edit_id}/undo` принимает `undo`. Повтор с тем же ID возвращает сохранённый исход.
+- `POST /v0/sessions/{id}/edits/{edit_id}/undo` принимает `undo`. При неудачной отмене ответ и событие `undo_conflict` или `undo_failed` содержат известные факты об операции. Если ответ содержит `run_id`, по нему можно отследить пояснение агента в потоке SSE. Повтор с тем же ID возвращает сохранённый исход.
 - `POST /v0/sessions/{id}/cancel` останавливает текущий запуск. `DELETE /v0/sessions/{id}` освобождает ресурсы.
 
 [Схема клиента](client-server.v0.schema.json)

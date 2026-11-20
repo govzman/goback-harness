@@ -114,6 +114,27 @@ function undoButton(container, id) {
   edits.set(id, button);
 }
 
+function undoReason(event) {
+  const reason = event.reason || event.status;
+  if (reason === "field_changed" && Object.hasOwn(event, "current")) {
+    return `Ожидалось ${JSON.stringify(event.expected)}, в файле найдено ${JSON.stringify(event.current)}. Возврат к ${JSON.stringify(event.restore)} пропущен.`;
+  }
+  const messages = {
+    file_missing: "Файл больше не найден.",
+    file_too_large: "Размер файла превышает лимит операции.",
+    field_missing: "Поля по этому пути больше нет.",
+    invalid_json: "GoBack не смог разобрать текущий JSON.",
+    field_not_scalar: "Поле теперь содержит объект или массив.",
+    file_changed_during_operation: "Файл изменился во время отмены.",
+    workdir_disconnected: "Связь с рабочей папкой прервана.",
+    read_only: "Папка открыта только для чтения.",
+    timeout: "Время ожидания отмены истекло. Запись не подтверждена.",
+    transport_error: "Связь с сандбоксом прервалась. Запись не подтверждена.",
+    protocol_error: "Ответ сандбокса не удалось проверить. Запись не подтверждена."
+  };
+  return messages[reason] || event.detail || `Точная причина недоступна · ${event.status || "conflict"}`;
+}
+
 window.goback.onEvent((event) => {
   switch (event.type) {
     case "workdir_mounted":
@@ -149,12 +170,13 @@ window.goback.onEvent((event) => {
       break;
     }
     case "undo_conflict":
-      entry("Конфликт отмены", `${event.path} · ${event.address.join(".")}\nФайл оставлен в текущем состоянии.`, "notice warning");
+      entry("Конфликт отмены", `${event.path} · ${event.address.join(".")}\n${undoReason(event)}\nФайл оставлен в текущем состоянии.`, "notice warning");
       break;
     case "undo_failed":
-      entry("GoBack", `Ошибка отмены · ${event.status}`, "notice warning");
+      entry("Ошибка отмены", `${event.path} · ${event.address.join(".")}\n${undoReason(event)}`, "notice warning");
       break;
     case "run_started":
+      agentMessage = undefined;
       busy = true;
       status("Агент работает", true);
       break;

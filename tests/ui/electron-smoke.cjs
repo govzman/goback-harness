@@ -7,6 +7,7 @@ const { setTimeout: delay } = require("node:timers/promises");
 
 const folder = process.env.GOBACK_ELECTRON_TEST_FOLDER;
 const address = process.env.GOBACK_TEST_SERVER || "http://127.0.0.1:8080";
+const conflict = process.env.GOBACK_ELECTRON_UNDO_CONFLICT === "1";
 assert(folder, "Set GOBACK_ELECTRON_TEST_FOLDER to a dedicated empty test directory");
 fs.mkdirSync(folder, { recursive: true });
 const config = path.join(folder, "config.json");
@@ -35,10 +36,21 @@ async function exercise(window) {
   await script("document.querySelector('#message').value = 'Поставь порт 9090 в config.json'; document.querySelector('#send').click()");
   await waitFor(window, "document.querySelector('.entry button') && !document.querySelector('.entry button').disabled");
   assert.equal(JSON.parse(fs.readFileSync(config)).port, 9090);
-  fs.writeFileSync(config, JSON.stringify({ port: 9090, workers: 3 }, null, 2));
+  const external = conflict ? { port: 7070, workers: 2 } : { port: 9090, workers: 3 };
+  fs.writeFileSync(config, JSON.stringify(external, null, 2));
   await script("document.querySelector('.entry button').click()");
-  await waitFor(window, "document.querySelector('#feed').textContent.includes('Остальные поля сохранены.')");
-  assert.deepEqual(JSON.parse(fs.readFileSync(config)), { port: 8080, workers: 3 });
+  if (conflict) {
+    await waitFor(window, "document.querySelector('.entry.warning')?.textContent.includes('Ожидалось 9090, в файле найдено 7070')");
+    await waitFor(window, `(() => {
+      const entry = document.querySelector('#feed > .entry:last-child');
+      return entry.querySelector('h3').textContent === 'Агент' && entry.querySelector('p').textContent.includes('7070');
+    })()`);
+    await waitFor(window, "!document.querySelector('#send').disabled");
+    assert.deepEqual(JSON.parse(fs.readFileSync(config)), external);
+  } else {
+    await waitFor(window, "document.querySelector('#feed').textContent.includes('Остальные поля сохранены.')");
+    assert.deepEqual(JSON.parse(fs.readFileSync(config)), { port: 8080, workers: 3 });
+  }
   assert(await script("document.querySelector('#feed').textContent.includes('Обнаружена внешняя правка')"));
   if (process.env.GOBACK_SCREENSHOT) {
     const image = await window.webContents.capturePage();
@@ -46,7 +58,7 @@ async function exercise(window) {
   }
   await script("document.querySelector('#disconnect').click()");
   await waitFor(window, "document.querySelector('#status').textContent === 'Отключено'");
-  console.log("Electron mount, chat, live workspace edit and selective undo passed.");
+  console.log(`Electron mount, chat, live workspace edit and ${conflict ? "undo conflict explanation" : "selective undo"} passed.`);
 }
 
 app.on("browser-window-created", (_event, window) => {

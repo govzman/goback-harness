@@ -16,6 +16,14 @@ FILE_LIMIT = 64 * 1024
 OUTPUT_LIMIT = 8 * 1024
 
 
+class FileTooLarge(ValueError):
+    pass
+
+
+class FieldMissing(ValueError):
+    pass
+
+
 def work_path(name):
     relative = PurePosixPath(name)
     if relative.is_absolute() or not relative.parts:
@@ -34,7 +42,7 @@ def read_bytes(path):
     with path.open("rb") as stream:
         data = stream.read(FILE_LIMIT + 1)
     if len(data) > FILE_LIMIT:
-        raise ValueError("File exceeds the per-operation size limit")
+        raise FileTooLarge("File exceeds the per-operation size limit")
     return data
 
 
@@ -81,11 +89,11 @@ def select_field(document, address):
     parent = document
     for key in address[:-1]:
         if not isinstance(parent, dict) or key not in parent:
-            raise ValueError("The field address no longer exists")
+            raise FieldMissing("The field address no longer exists")
         parent = parent[key]
     key = address[-1]
     if not isinstance(parent, dict) or key not in parent:
-        raise ValueError("The field address no longer exists")
+        raise FieldMissing("The field address no longer exists")
     return parent, key
 
 
@@ -99,19 +107,25 @@ def set_field(path, operation):
         parent, key = select_field(document, operation["address"])
     except (FileNotFoundError, UnicodeError, ValueError) as error:
         if undo:
-            return {"status": "conflict", "detail": str(error), "before": current_version}
+            reason = {
+                FileNotFoundError: "file_missing",
+                FileTooLarge: "file_too_large",
+                FieldMissing: "field_missing",
+            }.get(type(error), "invalid_json")
+            return {"status": "conflict", "reason": reason, "detail": str(error), "before": current_version}
         raise
 
     old, new = parent[key], operation["value"]
     if type(old) not in (str, int, float, bool, type(None)) or type(new) not in (str, int, float, bool, type(None)):
         if undo:
-            return {"status": "conflict", "detail": "The field is no longer scalar", "before": current_version}
+            return {"status": "conflict", "reason": "field_not_scalar",
+                    "detail": "The field is no longer scalar", "before": current_version}
         raise ValueError("Only scalar JSON fields are supported")
     if undo:
         expected = operation["expected"]
         if type(old) is not type(expected) or old != expected:
-            return {"status": "conflict", "detail": "The field holds a different value", "current": old,
-                    "before": current_version}
+            return {"status": "conflict", "reason": "field_changed",
+                    "detail": "The field holds a different value or type", "current": old, "before": current_version}
     elif operation.get("version") and operation["version"] != current_version:
         return {"status": "conflict", "detail": "The file changed since it was read", "before": current_version}
 
@@ -129,7 +143,8 @@ def set_field(path, operation):
     if len(data) > FILE_LIMIT:
         raise ValueError("Result exceeds the per-operation size limit")
     if not replace(path, data, current_version):
-        return {"status": "conflict", "detail": "The file changed during the operation", "before": current_version}
+        return {"status": "conflict", "reason": "file_changed_during_operation",
+                "detail": "The file changed during the operation", "before": current_version}
     return {"status": "ok", "old": old, "new": new, "before": current_version, "after": version(data)}
 
 

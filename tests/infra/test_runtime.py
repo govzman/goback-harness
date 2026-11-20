@@ -66,10 +66,19 @@ class Runtime(unittest.IsolatedAsyncioTestCase):
         await self.session.mount(self.folder, "rw")
         edit, cursor = await self.edit()
         self.config.write_text('{"port":7070,"workers":2}', encoding="utf-8")
-        response = await self.session.undo(edit["edit_id"])
-        self.assertEqual(response["status"], "conflict")
-        events = await self.events_until("undo_conflict", after=cursor)
+        response = await self.session.undo(edit["edit_id"], request_id="conflict")
+        facts = {"status": "conflict", "reason": "field_changed", "expected": 9090, "current": 7070, "restore": 8080}
+        self.assertEqual({key: response[key] for key in facts}, facts)
+        events = await self.events_until("run_finished", after=cursor, run_id=response["run_id"])
         self.assertIn("file_changed", [e["type"] for e in events])
+        conflict = next(e for e in events if e["type"] == "undo_conflict")
+        self.assertEqual({key: conflict[key] for key in facts}, facts)
+        self.assertEqual(events[-1]["status"], "ok")
+        explanation = "".join(e["text"] for e in events if e["type"] == "agent_delta")
+        for value in ("config.json", "7070", "9090", "8080"):
+            self.assertIn(value, explanation)
+        self.assertNotIn("tool_started", [e["type"] for e in events])
+        self.assertEqual(await self.session.undo(edit["edit_id"], request_id="conflict"), response)
         self.assertEqual(json.loads(self.config.read_text())["port"], 7070)
 
     async def test_read_only(self):
