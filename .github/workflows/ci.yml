@@ -28,11 +28,14 @@ jobs:
       - name: Build and start fixture stack
         env:
           SANDBOX_EXEC_TIMEOUT_S: "12"
+          LLM_API_KEY: "ci-server-only-canary"
         run: docker compose up --build --wait
       - name: UI scenarios with a mock gateway
         run: make test-ui
       - name: Container and mount integration
-        run: make test-infra
+        run: |
+          make test-infra
+          test -z "$(docker ps -aq --filter label=io.goback-harness.sandbox)"
       - name: BAF smoke with fixed model responses
         run: make baf-smoke
       - name: Diagnose

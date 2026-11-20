@@ -261,7 +261,7 @@ async def message(session_id: str, body: Message):
         if body.text != session.submissions[body.id]:
             raise HTTPException(409, "Request ID was used for another message")
         return {"v": 0, "run_id": body.id}
-    if session.active and not session.active.done():
+    if session.cancelling or (session.active and not session.active.done()):
         raise HTTPException(409, "Another operation is active")
     if len(session.submissions) >= 80:
         raise HTTPException(429, "Session message limit reached")
@@ -284,7 +284,7 @@ async def undo(session_id: str, edit_id: str, body: Undo):
         if saved["edit_id"] != edit_id:
             raise HTTPException(409, "Request ID was used for another edit")
         return saved
-    if session.active and not session.active.done():
+    if session.cancelling or (session.active and not session.active.done()):
         raise HTTPException(409, "Wait for the active operation to finish")
     edit = session.edits.get(edit_id)
     if not edit:

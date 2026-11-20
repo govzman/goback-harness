@@ -1,0 +1,8 @@
+{"task": "B1.1", "repeat": 1, "pair": "goback+fixture", "models": ["fixture"], "pass": true, "reason": "ok", "duration_ms": 6156, "input_tokens": 0, "output_tokens": 0}
+{"task": "B2.1", "repeat": 1, "pair": "goback+fixture", "models": ["fixture"], "pass": true, "reason": "ok", "duration_ms": 6141, "input_tokens": 0, "output_tokens": 0}
+{"task": "B3.1", "repeat": 1, "pair": "goback+fixture", "models": ["fixture"], "pass": true, "reason": "ok", "duration_ms": 5359, "input_tokens": 0, "output_tokens": 0}
+{"task": "B4.1", "repeat": 1, "pair": "goback+fixture", "models": ["fixture"], "pass": true, "reason": "ok", "duration_ms": 6032, "input_tokens": 0, "output_tokens": 0}
+{"task": "B5.1", "repeat": 1, "pair": "goback+fixture", "models": ["fixture"], "pass": true, "reason": "ok", "duration_ms": 10218, "input_tokens": 0, "output_tokens": 0}
+{"task": "B6.1", "repeat": 1, "pair": "goback+fixture", "models": ["fixture"], "pass": true, "reason": "ok", "duration_ms": 4969, "input_tokens": 0, "output_tokens": 0}
+{"task": "B7.1", "repeat": 1, "pair": "goback+fixture", "models": ["fixture"], "pass": true, "reason": "ok", "duration_ms": 4906, "input_tokens": 0, "output_tokens": 0}
+{"task": "B8.1", "repeat": 1, "pair": "goback+fixture", "models": ["fixture"], "pass": true, "reason": "ok", "duration_ms": 7360, "input_tokens": 0, "output_tokens": 0}

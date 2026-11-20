@@ -39,13 +39,18 @@ SCRIPTS = {
         "    return False\n"
         "assert os.getuid() != 0; "
         "assert not any(os.environ.get(k) for k in ('LLM_API_KEY', 'OPENAI_API_KEY', 'CLIENT_TOKENS')); "
+        "status = dict(row.split(':', 1) for row in Path('/proc/self/status').read_text().splitlines()); "
+        "assert status['NoNewPrivs'].strip() == '1' and int(status['CapEff'].strip(), 16) == 0; "
         "assert not Path('/var/run/docker.sock').exists(); "
         "assert inaccessible('/work/.git/canary'); "
         "assert inaccessible('/work/escape'); "
+        "assert {item.name for item in Path('/sys/class/net').iterdir()} == {'lo'}; "
         "s=socket.socket(); s.settimeout(2); assert s.connect_ex(('192.0.2.1', 443)) != 0; "
         "Path('isolation.txt').write_text('ok')")],
     "limits": [python("""\
 import os
+import errno
+import tempfile
 from pathlib import Path
 cg = Path('/sys/fs/cgroup')
 if (cg / 'cgroup.controllers').exists():
@@ -70,7 +75,17 @@ assert pids == 64, pids
 assert quota == period, (quota, period)
 tmp = os.statvfs('/tmp')
 assert tmp.f_frsize * tmp.f_blocks <= 64*1024*1024
-assert Path('/').stat().st_uid == 0 and not os.access('/opt/goback', os.W_OK)
+mounts = (line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines())
+assert any(parts[4] == '/' and 'ro' in parts[5].split(',') for parts in mounts)
+with tempfile.TemporaryFile(dir='/tmp', buffering=0) as file:
+    chunk = b'x' * (1024*1024)
+    try:
+        for _ in range(65):
+            file.write(chunk)
+    except OSError as error:
+        assert error.errno == errno.ENOSPC
+    else:
+        raise AssertionError('temporary storage exceeded its maximum')
 Path('limits.txt').write_text('ok')
 """)],
     "slow": [run("(sleep 5; echo leaked > escaped-process.txt) & wait")],

@@ -114,6 +114,7 @@ async def pump_events(session, emit):
         except httpx.HTTPStatusError as error:
             if error.response.status_code in {401, 404}:
                 emit({"type": "stream_ended"})
+                await session.close_mount()
                 return
         except httpx.HTTPError:
             pass

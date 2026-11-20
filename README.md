@@ -54,6 +54,6 @@ python client/cli.py run --folder ./demo-workdir --mode rw --message "Change the
 
 ## Проверки
 
-С запущенным сервером в режиме `fixture` команда `make test-ci` запускает проверки CLI, инфраструктуры и восемь smoke-БАФ. `make compare-undo` сравнивает три подхода к отмене на синтетических файлах.
+С запущенным сервером в режиме `fixture` команда `make test-ci` запускает проверки CLI, инфраструктуры и восемь smoke-БАФ. `make compare-undo` сравнивает три подхода к отмене на синтетических файлах. `make bench-fs` и `make bench-sandbox` повторяют замеры задержек и памяти.
 
 На сервере с живой моделью `make baf REPEATS=1` выполняет промежуточный прогон. Для проверки ответов с исполняемым кодом раннеру нужен локальный Docker Engine с образом сандбокса. В Windows укажи `GOBACK_CHECKER_WSL=Ubuntu`, чтобы чекеры запускались в Docker этой WSL2. [Набор БАФ](docs/baf.md) · [Отчёт](docs/report.md)
