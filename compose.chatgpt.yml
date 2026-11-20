@@ -1,0 +1,11 @@
+services:
+  llm-proxy:
+    environment:
+      LLM_MODE: chatgpt
+      GOBACK_AUTH_DIR: /run/goback-auth
+    volumes:
+      - type: bind
+        source: ${HOME}/.config/goback-harness
+        target: /run/goback-auth
+        bind:
+          create_host_path: false

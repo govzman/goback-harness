@@ -1,36 +1,83 @@
-# Заготовка. Все собственные сервисы собираются из исходников (build), базовые образы — с закреплённой версией.
-# Как сандбокс-менеджер запускает сандбоксы (Docker socket / rootless / sysbox / gVisor) — решение в ADR.
+x-service: &service
+  build:
+    context: .
+    dockerfile: services/Dockerfile
+    target: service
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+    interval: 3s
+    timeout: 3s
+    retries: 10
 
 services:
-  gateway:
-    build: ./services/gateway
-    env_file: .env
-    ports: ["${GATEWAY_PORT:-8080}:8080"]
-    depends_on: [harness]
-    healthcheck: {test: ["CMD", "true"], interval: 10s}   # заменить на реальную проверку
-
-  harness:
-    build: ./services/harness
-    environment:
-      LLM_URL: http://llm-proxy:8000      # харнес ходит в модель только через прокси
-    depends_on: [llm-proxy, sandbox-manager]
-    healthcheck: {test: ["CMD", "true"], interval: 10s}
+  sandbox-image:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      target: sandbox
+    image: goback-harness-sandbox:dev
+    command: ["true"]
 
   sandbox-manager:
-    build: ./services/sandbox-manager
-    env_file: .env
-    # volumes / privileges — по ADR о способе запуска сандбоксов
-    healthcheck: {test: ["CMD", "true"], interval: 10s}
+    <<: *service
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+      target: manager
+    command: ["python", "-m", "uvicorn", "manager:app", "--app-dir", "services/sandbox-manager", "--host", "0.0.0.0", "--no-access-log"]
+    depends_on:
+      sandbox-image:
+        condition: service_completed_successfully
+    environment:
+      SANDBOX_CPU: ${SANDBOX_CPU:-1}
+      SANDBOX_MEMORY: ${SANDBOX_MEMORY:-256m}
+      SANDBOX_PIDS: ${SANDBOX_PIDS:-64}
+      SANDBOX_DISK: ${SANDBOX_DISK:-64m}
+      SANDBOX_EXEC_TIMEOUT_S: ${SANDBOX_EXEC_TIMEOUT_S:-20}
+    devices: ["/dev/fuse:/dev/fuse"]
+    cap_add: [SYS_ADMIN]
+    security_opt: ["apparmor:unconfined"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - type: bind
+        source: /run/goback-harness
+        target: /run/goback-harness
+        bind:
+          propagation: rshared
+          create_host_path: true
+    ports: ["${GOBACK_BIND:-127.0.0.1}:${GOBACK_SSH_PORT:-2222}:2222"]
 
   llm-proxy:
-    build: ./services/llm-proxy
-    env_file: .env                         # ключ только здесь
-    healthcheck: {test: ["CMD", "true"], interval: 10s}
+    <<: *service
+    command: ["python", "-m", "uvicorn", "proxy:app", "--app-dir", "services/llm-proxy", "--host", "0.0.0.0", "--no-access-log"]
+    environment:
+      LLM_MODE: ${LLM_MODE:-fixture}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-6.1-terra}
+      LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-low}
+      LLM_PROVIDER_URL: ${LLM_PROVIDER_URL:-https://api.openai.com/v1}
 
-  # Тестовые сервисы для инфраструктурных тестов: docker compose --profile test up
-  allowed-http:
-    profiles: [test]
-    image: nginx:1.27-alpine
-  blocked-http:
-    profiles: [test]
-    image: nginx:1.27-alpine
+  harness:
+    <<: *service
+    command: ["python", "-m", "uvicorn", "harness:app", "--app-dir", "services/harness", "--host", "0.0.0.0", "--no-access-log"]
+    depends_on:
+      sandbox-manager:
+        condition: service_healthy
+      llm-proxy:
+        condition: service_healthy
+    volumes:
+      - traces:/var/lib/goback/traces
+
+  gateway:
+    <<: *service
+    command: ["python", "-m", "uvicorn", "gateway:app", "--app-dir", "services/gateway", "--host", "0.0.0.0", "--no-access-log"]
+    depends_on:
+      harness:
+        condition: service_healthy
+    environment:
+      CLIENT_TOKENS: ${CLIENT_TOKENS:-goback-local-demo}
+      GOBACK_SSH_PORT: ${GOBACK_SSH_PORT:-2222}
+    ports: ["${GOBACK_BIND:-127.0.0.1}:${GATEWAY_PORT:-8080}:8000"]
+
+volumes:
+  traces:

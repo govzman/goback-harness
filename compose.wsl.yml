@@ -1,0 +1,14 @@
+# Use only when a WSL Docker build cannot reach package repositories via its bridge.
+services:
+  sandbox-manager:
+    build:
+      network: host
+  llm-proxy:
+    build:
+      network: host
+  harness:
+    build:
+      network: host
+  gateway:
+    build:
+      network: host
