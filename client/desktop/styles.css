@@ -12,7 +12,7 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; height: 100vh; display: grid; grid-template-columns: 280px minmax(0, 1fr); }
+body { margin: 0; height: 100vh; overflow: hidden; display: grid; grid-template-columns: 280px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 button, input, select, textarea { font: inherit; }
 h1, h2, p { margin: 0; }
 label { display: block; margin: 12px 0 6px; color: var(--muted); font-size: 0.9rem; }
@@ -31,7 +31,7 @@ button.secondary { background: var(--paper); color: #234b3c; border-color: #cbd8
 .workspace button { width: 100%; margin-top: 11px; }
 .mono { font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 0.85rem; color: var(--muted); }
 #folder-path { overflow-wrap: anywhere; margin-top: 7px; }
-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; }
+main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
 .chat-header { min-height: 65px; padding: 15px 26px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fbfcfa; }
 .chat-header > div { display: flex; align-items: baseline; gap: 12px; }
 .chat-header h2 { font-size: 1.2rem; }

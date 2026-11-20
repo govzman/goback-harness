@@ -1,0 +1,43 @@
+name: Check GoBack Harness
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6.0.0
+        with:
+          python-version: "3.12.12"
+      - name: Install client dependencies
+        run: python -m pip install -r client/requirements.lock
+      - name: Prepare the GoBack mount directory
+        run: |
+          sudo modprobe fuse
+          sudo mkdir -p /run/goback-harness
+          sudo mount --bind /run/goback-harness /run/goback-harness
+          sudo mount --make-rshared /run/goback-harness
+      - name: Build and start fixture stack
+        env:
+          SANDBOX_EXEC_TIMEOUT_S: "12"
+        run: docker compose up --build --wait
+      - name: UI scenarios with a mock gateway
+        run: make test-ui
+      - name: Container and mount integration
+        run: make test-infra
+      - name: BAF smoke with fixed model responses
+        run: make baf-smoke
+      - name: Diagnose
+        if: failure()
+        run: docker compose logs --tail 60
+      - name: Tear down the stack
+        if: always()
+        run: docker compose down -v

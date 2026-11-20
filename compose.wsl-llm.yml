@@ -1,0 +1,15 @@
+# Optional egress workaround for the WSL2 lab. Only the model proxy uses host networking.
+services:
+  llm-proxy:
+    network_mode: host
+    command: ["python", "-m", "uvicorn", "proxy:app", "--app-dir", "services/llm-proxy", "--host", "${GOBACK_HOST_GATEWAY:-172.17.0.1}", "--port", "18083", "--no-access-log"]
+    environment:
+      GOBACK_HOST_GATEWAY: ${GOBACK_HOST_GATEWAY:-172.17.0.1}
+      GOBACK_PROXY_TOKEN: ${GOBACK_PROXY_TOKEN:?Set a local proxy token in the env file}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; urllib.request.urlopen('http://'+os.environ['GOBACK_HOST_GATEWAY']+':18083/health',timeout=2)"]
+  harness:
+    extra_hosts: ["goback-model-host:host-gateway"]
+    environment:
+      LLM_URL: http://goback-model-host:18083
+      GOBACK_PROXY_TOKEN: ${GOBACK_PROXY_TOKEN:?Set a local proxy token in the env file}

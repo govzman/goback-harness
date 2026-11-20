@@ -91,20 +91,22 @@ def select_field(document, address):
 
 def set_field(path, operation):
     undo = operation["op"] == "undo"
+    current_version = "missing"
     try:
         raw = read_bytes(path)
-        parent, key = select_field(json.loads(raw, object_pairs_hook=unique_keys), operation["address"])
+        current_version = version(raw)
+        document = json.loads(raw, object_pairs_hook=unique_keys)
+        parent, key = select_field(document, operation["address"])
     except (FileNotFoundError, UnicodeError, ValueError) as error:
         if undo:
-            return {"status": "conflict", "detail": str(error)}
+            return {"status": "conflict", "detail": str(error), "before": current_version}
         raise
 
     old, new = parent[key], operation["value"]
     if type(old) not in (str, int, float, bool, type(None)) or type(new) not in (str, int, float, bool, type(None)):
         if undo:
-            return {"status": "conflict", "detail": "The field is no longer scalar"}
+            return {"status": "conflict", "detail": "The field is no longer scalar", "before": current_version}
         raise ValueError("Only scalar JSON fields are supported")
-    current_version = version(raw)
     if undo:
         expected = operation["expected"]
         if type(old) is not type(expected) or old != expected:
@@ -116,10 +118,7 @@ def set_field(path, operation):
     if type(old) is type(new) and old == new:
         return {"status": "unchanged", "before": current_version, "after": current_version}
 
-    # Parse the original once more to retain the root when editing a nested object.
-    document = json.loads(raw, object_pairs_hook=unique_keys)
-    target, key = select_field(document, operation["address"])
-    target[key] = new
+    parent[key] = new
     indent = 2 if b"\n" in raw.rstrip() else None
     result = json.dumps(document, ensure_ascii=False, indent=indent, allow_nan=False)
     newline = "\r\n" if b"\r\n" in raw else "\n"

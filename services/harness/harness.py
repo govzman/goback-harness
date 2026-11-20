@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 app = FastAPI(title="GoBack harness", version="0")
 MANAGER = os.environ.get("SANDBOX_URL", "http://sandbox-manager:8000")
 LLM = os.environ.get("LLM_URL", "http://llm-proxy:8000")
+PROXY_TOKEN = os.environ.get("GOBACK_PROXY_TOKEN", "")
 TRACE_DIR = Path("/var/lib/goback/traces")
 SESSIONS = {}
 INSTRUCTIONS = (
@@ -57,6 +58,8 @@ class Session:
     submissions: dict = field(default_factory=dict)
     undo_requests: dict = field(default_factory=dict)
     active: object = None
+    active_id: str | None = None
+    cancelling: bool = False
     closed: bool = False
 
     async def emit(self, kind, **data):
@@ -109,13 +112,29 @@ async def manager(session, route, payload=None, method="POST"):
 async def sandbox_operation(session, operation, op_id):
     start = time.monotonic()
     try:
-        body = {"id": op_id, "operation": operation}
-        result = await manager(session, "exec", body)
+        body = {"id": op_id, "run_id": session.active_id or op_id, "operation": operation}
+        result = None
+        async with httpx.AsyncClient(timeout=65) as client:
+            async with client.stream("POST", f"{MANAGER}/v0/sessions/{session.id}/exec", json=body) as stream:
+                stream.raise_for_status()
+                async for line in stream.aiter_lines():
+                    event = json.loads(line)
+                    if event.get("id") != op_id or event.get("v") != 0:
+                        raise ValueError("Invalid operation event")
+                    if event["type"] == "result":
+                        if result is not None:
+                            raise ValueError("Operation returned more than one result")
+                        result = event
+        if result is None:
+            raise ValueError("No terminal operation result")
     except httpx.HTTPStatusError as error:
-        status = {403: "read_only", 409: "workdir_disconnected"}.get(error.response.status_code, "operation_error")
-        result = {"status": status}
+        result = {"status": "workdir_disconnected" if error.response.status_code == 404 else "operation_error"}
     except httpx.HTTPError:
         result = {"status": "transport_error"}
+    except (KeyError, ValueError):
+        result = {"status": "protocol_error"}
+    if result["status"] == "workdir_disconnected":
+        await session.emit("workdir_disconnected")
     await session.emit("tool_result", tool=operation["op"], status=result["status"],
                        duration_ms=round((time.monotonic() - start) * 1000))
     return result
@@ -154,7 +173,8 @@ async def use_tool(session, call, operation_id):
 async def model_turn(session, history, client):
     final = None
     payload = {"instructions": INSTRUCTIONS, "input": history, "tools": TOOLS}
-    async with client.stream("POST", f"{LLM}/v0/response", json=payload) as stream:
+    headers = {"X-GoBack-Proxy-Token": PROXY_TOKEN} if PROXY_TOKEN else {}
+    async with client.stream("POST", f"{LLM}/v0/response", json=payload, headers=headers) as stream:
         stream.raise_for_status()
         async for row in stream.aiter_lines():
             event = json.loads(row)
@@ -206,13 +226,16 @@ async def run_chat(session, run_id, message):
     except TimeoutError:
         status = "timeout"
         try:
-            await manager(session, "cancel")
+            await manager(session, "cancel", {"run_id": run_id})
         except httpx.HTTPError:
             pass
     except (httpx.HTTPError, RuntimeError, ValueError, KeyError) as error:
         status = "error"
-        await session.emit("run_error", detail=str(error) if isinstance(error, RuntimeError) else "Agent run failed")
+        detail = str(error) if isinstance(error, RuntimeError) else f"Agent run failed ({type(error).__name__})"
+        await session.emit("run_error", detail=detail)
     finally:
+        if session.cancelling:
+            status = "cancelled"
         await session.emit("run_finished", run_id=run_id, status=status)
 
 
@@ -243,6 +266,7 @@ async def message(session_id: str, body: Message):
     if len(session.submissions) >= 80:
         raise HTTPException(429, "Session message limit reached")
     session.submissions[body.id] = body.text
+    session.active_id = body.id
     session.active = asyncio.create_task(chat_with_event(session, body))
     return {"v": 0, "run_id": body.id}
 
@@ -269,6 +293,7 @@ async def undo(session_id: str, edit_id: str, body: Undo):
         raise HTTPException(429, "Session undo limit reached")
     if edit.get("undone"):
         return {"v": 0, "status": "already_undone", "edit_id": edit_id}
+    session.active_id = "undo-" + body.id
     session.active = asyncio.create_task(undo_edit(session, edit_id, edit, body.id))
     return await asyncio.shield(session.active)
 
@@ -290,8 +315,11 @@ async def undo_edit(session, edit_id, edit, request_id):
         await session.emit("undo_conflict", **details, detail=result.get("detail"))
     else:
         await session.emit("undo_failed", **details, status=status)
+    context = {**details, "status": status}
+    if status == "ok":
+        context.update(from_value=edit["new"], to_value=edit["old"])
     session.history.append([{"type": "message", "role": "developer",
-                             "content": "User requested undo. System result: " + json.dumps({**details, "status": status})}])
+                             "content": "User requested undo. System result: " + json.dumps(context)}])
     response = {"v": 0, "status": status, "edit_id": edit_id}
     session.undo_requests[request_id] = response
     return response
@@ -302,10 +330,14 @@ async def cancel(session_id: str):
     session = find_session(session_id)
     task = session.active
     if task and not task.done():
-        await manager(session, "cancel")
-        if not task.done():
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+        session.cancelling = True
+        try:
+            await manager(session, "cancel", {"run_id": session.active_id})
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        finally:
+            session.cancelling = False
     return {"v": 0, "status": "ok"}
 
 

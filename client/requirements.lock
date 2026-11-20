@@ -26,6 +26,8 @@ idna==3.20
     #   httpx
 pycparser==3.12 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
     # via cffi
+pyyaml==6.0.3
+    # via -r client/requirements.txt
 typing-extensions==4.16.0
     # via
     #   anyio

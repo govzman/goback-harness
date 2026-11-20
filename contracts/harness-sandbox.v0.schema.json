@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/govzman/goback-harness/contracts/harness-sandbox.v0.schema.json",
+  "title": "GoBack sandbox protocol v0",
+  "description": "POST .../exec returns NDJSON, with one accepted event and exactly one final result per request.",
+  "$defs": {
+    "request": {
+      "type": "object", "required": ["id", "run_id", "operation"],
+      "properties": {"id": {"type": "string"}, "run_id": {"type": "string"}, "operation": {"$ref": "#/$defs/operation"}}
+    },
+    "operation": {
+      "type": "object", "required": ["op"],
+      "properties": {
+        "op": {"enum": ["run", "read", "write", "set_json", "undo"]},
+        "path": {"type": "string"}, "command": {"type": "string"},
+        "content": {"type": "string"}, "version": {"type": "string"},
+        "address": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "value": {"type": ["string", "number", "boolean", "null"]},
+        "expected": {"type": ["string", "number", "boolean", "null"]}
+      },
+      "allOf": [
+        {"if": {"properties": {"op": {"const": "run"}}}, "then": {"required": ["command"]}, "else": {"required": ["path"]}},
+        {"if": {"properties": {"op": {"const": "write"}}}, "then": {"required": ["content"]}},
+        {"if": {"properties": {"op": {"enum": ["set_json", "undo"]}}}, "then": {"required": ["address", "value"]}},
+        {"if": {"properties": {"op": {"const": "undo"}}}, "then": {"required": ["expected"]}}
+      ]
+    },
+    "event": {
+      "type": "object", "required": ["v", "type", "id"],
+      "properties": {"v": {"const": 0}, "type": {"enum": ["accepted", "result"]}, "id": {"type": "string"},
+                     "status": {"enum": ["ok", "conflict", "unchanged", "command_error", "file_error", "timeout",
+                       "cancelled", "read_only", "workdir_disconnected", "invalid_operation", "sandbox_error", "limit_reached"]},
+                     "stdout": {"type": "string"}, "stderr": {"type": "string"}, "detail": {"type": "string"},
+                     "exit_code": {"type": ["integer", "null"]}},
+      "if": {"properties": {"type": {"const": "result"}}},
+      "then": {"required": ["status"]}
+    }
+  }
+}

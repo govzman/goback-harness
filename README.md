@@ -23,6 +23,8 @@ docker compose down -v
 python -m pip install -r client/requirements.lock
 ```
 
+Графический клиент запускается через Electron. Слева адрес, токен и выбор папки, справа чат и карточки действий с кнопкой отмены. [Запуск Electron и CLI](client/README.md)
+
 Создай отдельную папку и положи в неё `config.json` с содержимым `{"port": 8080, "workers": 2}`. CLI запустит сценарий, сделает тестовую правку со стороны клиента и проверит результат.
 
 ```sh
@@ -34,7 +36,8 @@ python client/cli.py run --folder ./demo-workdir --mode rw --message "Change the
 ## Подключение модели
 
 - Для API-ключа установи `LLM_MODE=api` и `LLM_API_KEY` в локальном `.env`. Модель и effort задаются `LLM_MODEL` и `LLM_REASONING_EFFORT`. Ключ получает только LLM proxy.
-- Для входа через подписку запусти `python3 services/llm-proxy/chatgpt_login.py` на сервере или в локальной WSL2 с Python и пакетом `cryptography`. Подтверди вход в браузере на том же ПК и выбери модель из выведенного каталога. Запусти Compose с `-f docker-compose.yml -f compose.chatgpt.yml`. Эта интеграция пока требует проверки на живой модели. [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source)
+- Для входа через подписку запусти `python3 services/llm-proxy/chatgpt_login.py` на Linux-хосте или в локальной WSL2 с Python и пакетом `cryptography`. Открой выведенную ссылку в браузере на том же ПК. Подтверди разрешение и выбери модель из выведенного каталога. Запусти Compose с `-f docker-compose.yml -f compose.chatgpt.yml`. [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source)
+- Если в WSL2 сетевые запросы proxy к OpenAI зависают, добавь оверлей `-f compose.wsl-llm.yml` и задай случайный `GOBACK_PROXY_TOKEN` в локальном `.env`. Proxy слушает адрес Docker-хоста `172.17.0.1:18083`, а harness аутентифицируется этим токеном. Сеть агента остаётся выключенной.
 
 ## Устройство
 
@@ -46,3 +49,11 @@ python client/cli.py run --folder ./demo-workdir --mode rw --message "Change the
 ```
 
 Отмена доступна в рамках открытой сессии для правок существующих скалярных полей JSON через специальный инструмент. Учитываются значения полей и версия файла при сохранении. Пользователь должен сохранить свою правку перед отменой. Редактор может записать файл в узком интервале между проверкой и атомарной заменой, поскольку не участвует в общем блокировании. Перезапуск сервисов завершает сессии.
+
+Подробности в [описании harness](docs/harness.md), [контрактах v0](contracts/README.md) и [архитектурных решениях](docs/adr).
+
+## Проверки
+
+С запущенным сервером в режиме `fixture` команда `make test-ci` запускает проверки CLI, инфраструктуры и восемь smoke-БАФ. `make compare-undo` сравнивает три подхода к отмене на синтетических файлах.
+
+На сервере с живой моделью `make baf REPEATS=1` выполняет промежуточный прогон. Для проверки ответов с исполняемым кодом раннеру нужен локальный Docker Engine с образом сандбокса. В Windows укажи `GOBACK_CHECKER_WSL=Ubuntu`, чтобы чекеры запускались в Docker этой WSL2. [Набор БАФ](docs/baf.md) · [Отчёт](docs/report.md)

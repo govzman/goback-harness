@@ -105,6 +105,10 @@ async def events(session_id: str, after: int = 0, owner=Depends(authorize)):
     try:
         response = await client.send(request, stream=True)
         response.raise_for_status()
+    except httpx.HTTPStatusError as error:
+        await client.aclose()
+        status = error.response.status_code
+        raise HTTPException(status if status in {404, 422} else 502, "Unable to open the event stream") from None
     except (httpx.HTTPError, ValueError):
         await client.aclose()
         raise HTTPException(502, "Unable to open the event stream") from None

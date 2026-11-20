@@ -1,16 +1,20 @@
 """Expose only the selected directory through a reverse SSH tunnel."""
 
 import os
+import stat
 from pathlib import Path, PurePosixPath
 
 import asyncssh
 
 
+WORKDIR_WRITE_LIMIT = 64 * 1024 * 1024
+
+
 class WorkdirServer(asyncssh.SFTPServer):
-    def __init__(self, channel, folder, read_only):
-        super().__init__(channel, chroot=os.fsencode(folder))
-        self.folder = folder
-        self.read_only = read_only
+    def __init__(self, channel, workdir):
+        super().__init__(channel, chroot=os.fsencode(workdir.folder))
+        self.workdir = workdir
+        self.folder = workdir.folder
 
     def map_path(self, path):
         remote = PurePosixPath(os.fsdecode(path))
@@ -23,21 +27,27 @@ class WorkdirServer(asyncssh.SFTPServer):
             local /= part
             if local.is_symlink() or getattr(local, "is_junction", lambda: False)():
                 raise asyncssh.SFTPPermissionDenied("Links and junctions are unsupported")
+            try:
+                info = local.stat()
+            except FileNotFoundError:
+                continue
+            if stat.S_ISREG(info.st_mode) and info.st_nlink > 1:
+                raise asyncssh.SFTPPermissionDenied("Multiply linked files are unsupported")
         if not local.resolve().is_relative_to(self.folder):
             raise asyncssh.SFTPPermissionDenied("Path is outside the permitted workdir")
         return os.fsencode(local)
 
     async def scandir(self, path):
-        async for entry in super().scandir(path):
-            name = os.fsdecode(entry.filename)
-            if name in {".", ".."}:
-                yield entry
-                continue
-            try:
-                self.map_path(path.rstrip(b"/") + b"/" + entry.filename)
-            except asyncssh.SFTPPermissionDenied:
-                continue
-            yield entry
+        local_dir = os.fsdecode(self.map_path(path))
+        with os.scandir(local_dir) as entries:
+            for entry in entries:
+                name = os.fsencode(entry.name)
+                try:
+                    self.map_path(path.rstrip(b"/") + b"/" + name)
+                    attrs = asyncssh.SFTPAttrs.from_local(entry.stat(follow_symlinks=False))
+                except (asyncssh.SFTPPermissionDenied, FileNotFoundError):
+                    continue
+                yield asyncssh.SFTPName(name, attrs=attrs)
 
     def symlink(self, _oldpath, _newpath):
         raise asyncssh.SFTPPermissionDenied("Symbolic links are unsupported")
@@ -51,8 +61,20 @@ class WorkdirServer(asyncssh.SFTPServer):
         return super().open(path, flags, attrs)
 
     def check_write(self):
-        if self.read_only:
+        if self.workdir.mode == "ro":
             raise asyncssh.SFTPPermissionDenied("Workdir is read-only")
+
+    def write(self, file_obj, offset, data):
+        self.check_write()
+        if self.workdir.bytes_written + len(data) > WORKDIR_WRITE_LIMIT or offset + len(data) > WORKDIR_WRITE_LIMIT:
+            raise asyncssh.SFTPFailure("Workdir write budget exhausted")
+        self.workdir.bytes_written += len(data)
+        return super().write(file_obj, offset, data)
+
+    def check_size(self, attrs):
+        self.check_write()
+        if attrs.size is not None and attrs.size > WORKDIR_WRITE_LIMIT:
+            raise asyncssh.SFTPFailure("Requested file size exceeds the workdir budget")
 
     def mkdir(self, path, attrs):
         self.check_write()
@@ -75,15 +97,15 @@ class WorkdirServer(asyncssh.SFTPServer):
         return super().posix_rename(oldpath, newpath)
 
     def setstat(self, path, attrs):
-        self.check_write()
+        self.check_size(attrs)
         return super().setstat(path, attrs)
 
     def lsetstat(self, path, attrs):
-        self.check_write()
+        self.check_size(attrs)
         return super().lsetstat(path, attrs)
 
     def fsetstat(self, file_obj, attrs):
-        self.check_write()
+        self.check_size(attrs)
         return super().fsetstat(file_obj, attrs)
 
 
@@ -104,6 +126,7 @@ class Workdir:
         if not self.folder.is_dir():
             raise ValueError("Select a directory")
         self.mode = mode
+        self.bytes_written = 0
         self.host_key = asyncssh.generate_private_key("ssh-ed25519")
         self.sftp = None
         self.ssh = None
@@ -116,7 +139,7 @@ class Workdir:
         relay_key = asyncssh.import_public_key(session["relay_host_key"])
         self.sftp = await asyncssh.listen(
             "127.0.0.1", 0, server_host_keys=[self.host_key], server_factory=lambda: SFTPAuth(client_key),
-            sftp_factory=lambda chan: WorkdirServer(chan, self.folder, self.mode == "ro"),
+            sftp_factory=lambda chan: WorkdirServer(chan, self),
         )
         try:
             self.ssh = await asyncssh.connect(

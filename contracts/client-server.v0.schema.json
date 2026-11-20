@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/govzman/goback-harness/contracts/client-server.v0.schema.json",
+  "title": "GoBack client protocol v0",
+  "description": "HTTP /v0 with bearer authentication. Events use SSE with an integer sequence cursor.",
+  "$defs": {
+    "prepare": {
+      "type": "object", "required": ["mode", "host_key"],
+      "properties": {"mode": {"enum": ["ro", "rw"]}, "host_key": {"type": "string"}}
+    },
+    "prepared": {
+      "type": "object",
+      "required": ["v", "session_id", "ssh_port", "relay_port", "ticket", "relay_host_key", "sftp_authorized_key"],
+      "properties": {
+        "v": {"const": 0}, "session_id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+        "ssh_port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "relay_port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "ticket": {"type": "string"}, "relay_host_key": {"type": "string"}, "sftp_authorized_key": {"type": "string"}
+      }
+    },
+    "message": {
+      "type": "object", "required": ["id", "text"],
+      "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 80},
+                     "text": {"type": "string", "minLength": 1, "maxLength": 16000}}
+    },
+    "undo": {
+      "type": "object", "required": ["id"],
+      "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 80}}
+    },
+    "reply": {
+      "type": "object", "required": ["v"],
+      "properties": {"v": {"const": 0}, "status": {"type": "string"},
+                     "run_id": {"type": "string"}, "edit_id": {"type": "string"}}
+    },
+    "event": {
+      "type": "object", "required": ["v", "type", "seq"],
+      "properties": {
+        "v": {"const": 0}, "seq": {"type": "integer", "minimum": 1},
+        "type": {"enum": ["workdir_mounted", "workdir_disconnected", "user_message", "run_started",
+          "run_finished", "run_error", "agent_delta", "tool_started", "tool_result", "model_usage",
+          "file_changed", "edit_applied", "undo_applied", "undo_conflict", "undo_failed"]},
+        "text": {"type": "string"}, "path": {"type": ["string", "null"]}, "edit_id": {"type": "string"},
+        "address": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "status": {"type": "string"}, "run_id": {"type": "string"}, "detail": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"enum": ["user_message", "agent_delta"]}}}, "then": {"required": ["text"]}},
+        {"if": {"properties": {"type": {"enum": ["edit_applied", "undo_applied", "undo_conflict"]}}},
+         "then": {"required": ["edit_id", "path", "address"]}}
+      ]
+    }
+  }
+}

@@ -44,6 +44,9 @@ def write_private(path, value):
     fd, tmp = tempfile.mkstemp(dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            if hasattr(os, "geteuid") and os.geteuid() == 0 and path.exists():
+                owner = path.stat()
+                os.fchown(stream.fileno(), owner.st_uid, owner.st_gid)
             json.dump(value, stream)
         os.replace(tmp, path)
     finally:

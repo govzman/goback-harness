@@ -29,6 +29,7 @@ services:
       sandbox-image:
         condition: service_completed_successfully
     environment:
+      GOBACK_INSTANCE: ${COMPOSE_PROJECT_NAME:-goback}
       SANDBOX_CPU: ${SANDBOX_CPU:-1}
       SANDBOX_MEMORY: ${SANDBOX_MEMORY:-256m}
       SANDBOX_PIDS: ${SANDBOX_PIDS:-64}

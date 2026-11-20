@@ -6,6 +6,7 @@ import json
 import os
 import secrets
 import socket
+import time
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -15,10 +16,12 @@ import asyncssh
 import docker
 from docker.errors import NotFound
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 
-ROOT = Path("/run/goback-harness")
+INSTANCE = os.environ.get("GOBACK_INSTANCE", "goback")
+ROOT = Path("/run/goback-harness") / INSTANCE
 SESSIONS = {}
 RELAY_KEY = asyncssh.generate_private_key("ssh-ed25519")
 ENGINE = docker.from_env(timeout=45)
@@ -38,6 +41,8 @@ class Session:
     container: object = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     results: dict = field(default_factory=dict)
+    cancelled: set = field(default_factory=set)
+    absent_since: float = field(default_factory=time.monotonic)
 
     @property
     def workdir(self):
@@ -57,12 +62,14 @@ class Relay(asyncssh.SSHServer):
         if session and not session.ssh and hmac.compare_digest(session.ticket, password):
             self.session = session
             session.ssh = self.connection
+            session.absent_since = None
             return True
         return False
 
     def connection_lost(self, _error):
         if self.session and self.session.ssh is self.connection:
             self.session.ssh = None
+            self.session.absent_since = time.monotonic()
 
     def server_requested(self, listen_host, listen_port):
         return bool(self.session and listen_host == "127.0.0.1" and listen_port == self.session.port)
@@ -79,34 +86,65 @@ async def remove_container(session):
             session.container = None
 
 
+async def clear_mount(directory):
+    workdir = directory / "work"
+    unmount = await asyncio.create_subprocess_exec("umount", "-l", str(workdir),
+                                                   stderr=asyncio.subprocess.DEVNULL)
+    await unmount.wait()
+    try:
+        workdir.rmdir()
+    except FileNotFoundError:
+        pass
+    for entry in ("identity", "known_hosts"):
+        (directory / entry).unlink(missing_ok=True)
+    directory.rmdir()
+
+
 async def cleanup(session):
     await remove_container(session)
-    if session.mount is not None:
-        unmount = await asyncio.create_subprocess_exec("umount", "-l", str(session.workdir))
-        await unmount.wait()
-        if session.mount.returncode is None:
-            session.mount.terminate()
-            await session.mount.wait()
-        session.mount = None
     if session.ssh:
         session.ssh.close()
-    for entry in ("identity", "known_hosts"):
-        (session.directory / entry).unlink(missing_ok=True)
-    session.workdir.rmdir()
-    session.directory.rmdir()
+    if session.mount is not None and session.mount.returncode is None:
+        session.mount.terminate()
+        try:
+            await asyncio.wait_for(session.mount.wait(), timeout=5)
+        except TimeoutError:
+            session.mount.kill()
+            await session.mount.wait()
+    session.mount = None
+    await clear_mount(session.directory)
+
+
+async def reap_disconnected():
+    while True:
+        await asyncio.sleep(5)
+        for session in list(SESSIONS.values()):
+            if session.absent_since is None or time.monotonic() - session.absent_since < 45:
+                continue
+            if SESSIONS.pop(session.id, None) is session:
+                await remove_container(session)
+                async with session.lock:
+                    await cleanup(session)
 
 
 @asynccontextmanager
 async def lifespan(_app):
     # A manager restart ends sessions. Remove containers left behind by a crash.
-    stale = await asyncio.to_thread(ENGINE.containers.list, all=True, filters={"label": OWNER})
+    ROOT.mkdir(mode=0o700, parents=True, exist_ok=True)
+    stale = await asyncio.to_thread(ENGINE.containers.list, all=True, filters={"label": f"{OWNER}={INSTANCE}"})
     for container in stale:
         await asyncio.to_thread(container.remove, force=True)
+    for entry in ROOT.iterdir():
+        if len(entry.name) == 32 and all(c in "0123456789abcdef" for c in entry.name):
+            await clear_mount(entry)
     relay = await asyncssh.listen("0.0.0.0", 2222, server_factory=Relay, server_host_keys=[RELAY_KEY],
                                   login_timeout=10)
+    reaper = asyncio.create_task(reap_disconnected())
     try:
         yield
     finally:
+        reaper.cancel()
+        await asyncio.gather(reaper, return_exceptions=True)
         relay.close()
         await relay.wait_closed()
         for session in list(SESSIONS.values()):
@@ -143,7 +181,7 @@ async def start_container(session):
     mount = docker.types.Mount("/work", str(session.workdir), type="bind", read_only=session.mode == "ro")
     session.container = await asyncio.to_thread(
         ENGINE.containers.run, SANDBOX_IMAGE, detach=True, init=True,
-        name=f"goback-{session.id}", labels={OWNER: session.id},
+        name=f"goback-{session.id}", labels={OWNER: INSTANCE},
         user="65532:65532", network_mode="none", read_only=True, cap_drop=["ALL"],
         security_opt=["no-new-privileges"], pids_limit=int(os.environ.get("SANDBOX_PIDS", "64")),
         nano_cpus=int(float(os.environ.get("SANDBOX_CPU", "1")) * 1_000_000_000),
@@ -162,7 +200,12 @@ class Prepare(BaseModel):
 
 class Execution(BaseModel):
     id: str
+    run_id: str
     operation: dict
+
+
+class Cancel(BaseModel):
+    run_id: str
 
 
 @app.get("/health")
@@ -234,12 +277,12 @@ async def mount(session_id: str):
             raise
 
 
-@app.post("/v0/sessions/{session_id}/exec")
-async def execute(session_id: str, body: Execution):
-    session = find_session(session_id)
+async def operation_result(session, body):
     async with session.lock:
         if body.id in session.results:
             return session.results[body.id]
+        if body.run_id in session.cancelled:
+            return {"v": 0, "type": "result", "id": body.id, "status": "cancelled"}
         require_mount(session)
         operation = body.operation
         if operation.get("op") in {"write", "set_json", "undo"} and session.mode != "rw":
@@ -270,9 +313,31 @@ async def execute(session_id: str, body: Execution):
         return envelope
 
 
+@app.post("/v0/sessions/{session_id}/exec")
+async def execute(session_id: str, body: Execution):
+    session = find_session(session_id)
+
+    async def events():
+        task = asyncio.create_task(operation_result(session, body))
+        yield json.dumps({"v": 0, "type": "accepted", "id": body.id}) + "\n"
+        try:
+            result = await asyncio.shield(task)
+        except HTTPException as error:
+            status = {403: "read_only", 409: "workdir_disconnected", 413: "invalid_operation",
+                      429: "limit_reached"}.get(error.status_code, "sandbox_error")
+            result = {"v": 0, "type": "result", "id": body.id, "status": status}
+        except Exception:
+            result = {"v": 0, "type": "result", "id": body.id, "status": "sandbox_error"}
+        yield json.dumps(result, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(events(), media_type="application/x-ndjson")
+
+
 @app.post("/v0/sessions/{session_id}/cancel")
-async def cancel(session_id: str):
-    await remove_container(find_session(session_id))
+async def cancel(session_id: str, body: Cancel):
+    session = find_session(session_id)
+    session.cancelled.add(body.run_id)
+    await remove_container(session)
     return {"v": 0, "status": "ok"}
 
 

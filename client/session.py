@@ -70,10 +70,12 @@ class Session:
     async def cancel(self):
         return await self.request("POST", self.path("cancel"))
 
-    async def events(self, after=0):
+    async def events(self, after=0, on_open=None):
         async with self.http.stream("GET", self.path("events"), params={"after": after},
                                     timeout=httpx.Timeout(20, read=20)) as response:
             response.raise_for_status()
+            if on_open:
+                on_open()
             async for line in response.aiter_lines():
                 if line.startswith("data: "):
                     yield json.loads(line[6:])
@@ -97,12 +99,16 @@ class Session:
 async def pump_events(session, emit):
     after = 0
     reconnecting = False
+
+    def opened():
+        nonlocal reconnecting
+        if reconnecting:
+            emit({"type": "stream_up"})
+            reconnecting = False
+
     while session.id:
         try:
-            async for event in session.events(after):
-                if reconnecting:
-                    emit({"type": "stream_up"})
-                    reconnecting = False
+            async for event in session.events(after, on_open=opened):
                 after = event["seq"]
                 emit(event)
         except httpx.HTTPStatusError as error:
