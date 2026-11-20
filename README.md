@@ -1,4 +1,4 @@
-# <Название проекта>: среда исполнения агента
+# GoBack Harness
 
 > Шаблон репозитория для задания A. ТЗ: [A-agent-runtime.md](https://github.com/deeppavlov/agentic-course-itmo/blob/main/projects/A-agent-runtime.md).
 > Замени всё в `<угловых скобках>`, удали этот блок.
