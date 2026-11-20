@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>GoBack Harness</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="renderer.js"></script>
+</head>
+<body>
+  <aside class="workspace">
+    <header class="brand"><span aria-hidden="true">↶</span><h1>GoBack Harness</h1></header>
+    <form id="connection">
+      <h2>Подключение</h2>
+      <label for="server">Адрес сервера</label>
+      <input id="server" type="url" value="http://127.0.0.1:8080" required>
+      <label for="token">Токен клиента</label>
+      <input id="token" type="password" placeholder="Токен GoBack" required>
+      <button id="connect" class="secondary" type="submit">Подключиться</button>
+    </form>
+    <section>
+      <h2>Рабочая папка</h2>
+      <button id="folder" class="secondary" type="button" disabled>Выбрать папку</button>
+      <p id="folder-path" class="mono"></p>
+      <label for="mode">Права агента</label>
+      <select id="mode">
+        <option value="ro">Только чтение</option>
+        <option value="rw">Чтение и запись</option>
+      </select>
+      <button id="mount" type="button" disabled>Открыть сессию</button>
+      <button id="disconnect" class="secondary" type="button" hidden>Закрыть сессию</button>
+    </section>
+  </aside>
+  <main>
+    <header class="chat-header">
+      <div><h2>Чат</h2><span id="mount-path" class="mono" hidden>/work</span></div>
+      <span id="status" class="status" role="status">Отключено</span>
+    </header>
+    <div class="feed" id="feed" role="log" aria-label="Чат и события агента">
+      <div id="empty" class="empty">
+        <span aria-hidden="true">↶</span>
+        <p>Подключись к серверу и открой рабочую папку.</p>
+      </div>
+    </div>
+    <form id="composer">
+      <p id="error" role="alert" hidden></p>
+      <label for="message" class="visually-hidden">Сообщение агенту</label>
+      <textarea id="message" placeholder="Сообщение агенту" rows="2" maxlength="16000" disabled></textarea>
+      <div class="actions">
+        <button type="button" class="secondary" id="cancel" disabled>Остановить</button>
+        <button type="submit" id="send" disabled>Отправить</button>
+      </div>
+    </form>
+  </main>
+</body>
+</html>
